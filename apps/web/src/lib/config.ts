@@ -7,8 +7,15 @@ export type PlaybackSpeed = (typeof PLAYBACK_SPEEDS)[number];
 
 export const MAP_INITIAL = { center: [31.4, 48.5] as [number, number], zoom: 5.3 };
 
-/** Стили подложки (CARTO, без ключа). В проде заменяется на self-hosted PMTiles (docs/06 §6). */
-export const BASE_STYLE_LIGHT =
-  "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
-export const BASE_STYLE_DARK =
-  "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+/** «Мировая карта» ограничена регионом: Украина + европейская часть РФ + соседи. */
+export const MAP_MAX_BOUNDS: [[number, number], [number, number]] = [
+  [15, 38],
+  [65, 62],
+];
+
+/**
+ * По умолчанию — собственная подложка из /public/basemap (Natural Earth).
+ * Внешний стиль (CARTO/PMTiles) подключается опционально через env.
+ */
+export const BASE_STYLE_LIGHT = process.env.NEXT_PUBLIC_BASE_STYLE_LIGHT ?? null;
+export const BASE_STYLE_DARK = process.env.NEXT_PUBLIC_BASE_STYLE_DARK ?? null;

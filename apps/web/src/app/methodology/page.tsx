@@ -14,14 +14,26 @@ export default function MethodologyPage() {
       </h1>
 
       <div className="mb-6 rounded-xl border border-amber-500/50 bg-amber-500/10 p-4 text-sm" style={{ color: "var(--text-secondary)" }}>
-        <strong style={{ color: "var(--text-primary)" }}>⚠ Демонстрационный набор данных.</strong>{" "}
-        Сейчас платформа работает на синтетическом датасете: геометрия фронта — грубое
-        кейфрейм-приближение реальных фаз войны, фоновые события и числа потерь сгенерированы
-        по порядкам величин публичных данных. Ключевые события (взятие/освобождение городов,
-        крупные удары) соответствуют реальным датам. Данные{" "}
-        <strong style={{ color: "var(--text-primary)" }}>непригодны для цитирования</strong> — они
-        демонстрируют работу платформы до подключения ETL-конвейера реальных источников
-        (архитектура описана в docs/03, docs/06 репозитория).
+        <strong style={{ color: "var(--text-primary)" }}>Режимы датасета.</strong> Платформа
+        собирается в двух режимах (плашка в шапке показывает активный):
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          <li>
+            <strong style={{ color: "var(--text-primary)" }}>Реальные данные</strong>{" "}
+            (<code>pnpm gen:real</code>): потери — официальные ежедневные сводки Генштаба ВСУ
+            (зеркало russianwarship.rip), по текущий день; геометрия фронта — полная история
+            DeepState (при доступной сети; иначе — кейфрейм-приближение с явной пометкой);
+            события — только реальные ключевые.
+          </li>
+          <li>
+            <strong style={{ color: "var(--text-primary)" }}>Демо</strong>{" "}
+            (<code>pnpm gen:demo</code>): синтетическое приближение для разработки,{" "}
+            <strong style={{ color: "var(--text-primary)" }}>непригодно для цитирования</strong>.
+          </li>
+        </ul>
+        <p className="mt-2">
+          Числа Генштаба ВСУ — заявление стороны конфликта (колонка «заявлено»); по инварианту
+          проекта они никогда не объединяются с другими источниками.
+        </p>
       </div>
 
       <section className="space-y-3 text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
@@ -66,6 +78,16 @@ export default function MethodologyPage() {
             ))}
           </tbody>
         </table>
+
+        <h2 className="pt-2 text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+          Картографическая подложка
+        </h2>
+        <p>
+          Границы стран, области Украины и города — Natural Earth (public domain,
+          naturalearthdata.com); шрифты подписей — KlokanTech Noto Sans (OFL). Подложка
+          хранится в приложении и не обращается к внешним тайл-серверам; карта ограничена
+          регионом Украины, европейской части России и соседних стран.
+        </p>
 
         <h2 className="pt-2 text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
           Известные ограничения демо-датасета

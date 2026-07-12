@@ -11,7 +11,7 @@ import { useUiStore } from "@/stores/uiStore";
 const CATEGORY_LABEL: Partial<Record<EquipmentCategory, string>> = {
   tank: "Танки",
   ifv: "БМП",
-  apc: "БТР",
+  apc: "ББМ/БТР",
   artillery: "Артиллерия",
   air_defense: "ПВО",
   aircraft: "Самолёты",
@@ -147,6 +147,11 @@ export function StatsPanel() {
         <div className="px-2 pt-2 text-[11px] font-medium" style={{ color: "var(--text-muted)" }}>
           Личный состав — по источникам, не суммируются
         </div>
+        {personnel.length === 0 && (
+          <p className="px-2 py-2 text-[11px]" style={{ color: "var(--text-muted)" }}>
+            Для этой стороны нет подключённых источников (см. методологию).
+          </p>
+        )}
         <table className="w-full text-xs">
           <tbody>
             {personnel.map((p) => (

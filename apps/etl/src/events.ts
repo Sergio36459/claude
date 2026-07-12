@@ -162,6 +162,29 @@ function srcRefs(rnd: () => number, date: string) {
 
 let nextId = 1;
 
+/** Только реальные ключевые события (режим реальных данных). */
+export function keyEventsOnlyForDay(date: string): WarEvent[] {
+  const rnd = mulberry32(hashString(`events:${date}`));
+  const events: WarEvent[] = [];
+  for (const k of KEY_EVENTS) {
+    if (k.date !== date) continue;
+    events.push({
+      id: nextId++,
+      date,
+      timeUtc: null,
+      type: k.type,
+      title: k.title,
+      description: k.description,
+      coords: k.coords,
+      placeName: k.placeName,
+      confidence: k.confidence,
+      isKeyEvent: true,
+      sources: srcRefs(rnd, date),
+    });
+  }
+  return events;
+}
+
 /**
  * События одного дня: реальные ключевые + синтетический фон.
  * frontLine — интерполированная линия фронта дня (для геопривязки боёв).

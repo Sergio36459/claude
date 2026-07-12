@@ -3,7 +3,8 @@
 import maplibregl, { Map as MlMap, type StyleSpecification } from "maplibre-gl";
 import type { Feature, FeatureCollection, LineString } from "geojson";
 import { easeInOutCubic, lerpLine, resampleLine, type LngLat } from "@uwt/geo";
-import { BASE_STYLE_DARK, BASE_STYLE_LIGHT, MAP_INITIAL } from "./config";
+import { buildLocalStyle } from "./baseStyle";
+import { BASE_STYLE_DARK, BASE_STYLE_LIGHT, MAP_INITIAL, MAP_MAX_BOUNDS } from "./config";
 import type { LayerToggles } from "@/stores/uiStore";
 
 export interface DayGeo {
@@ -24,27 +25,19 @@ function cssVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
-async function loadStyle(theme: "light" | "dark"): Promise<StyleSpecification | string> {
+async function loadStyle(theme: "light" | "dark"): Promise<StyleSpecification> {
+  // внешний стиль — только если задан через env; иначе собственная подложка
   const url = theme === "dark" ? BASE_STYLE_DARK : BASE_STYLE_LIGHT;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(String(res.status));
-    return (await res.json()) as StyleSpecification;
-  } catch {
-    // офлайн/заблокированная подложка — минимальный локальный стиль (docs/07: не блокируем работу)
-    return {
-      version: 8,
-      name: "uwt-fallback",
-      sources: {},
-      layers: [
-        {
-          id: "bg",
-          type: "background",
-          paint: { "background-color": theme === "dark" ? "#101010" : "#e9e7e2" },
-        },
-      ],
-    };
+  if (url) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(String(res.status));
+      return (await res.json()) as StyleSpecification;
+    } catch {
+      /* внешний стиль недоступен — локальная подложка ниже */
+    }
   }
+  return buildLocalStyle(theme);
 }
 
 /**
@@ -90,9 +83,13 @@ export class MapController {
       style,
       center: MAP_INITIAL.center,
       zoom: MAP_INITIAL.zoom,
-      minZoom: 4,
+      minZoom: 3.6,
       maxZoom: 12,
-      attributionControl: { compact: true },
+      maxBounds: MAP_MAX_BOUNDS,
+      attributionControl: {
+        compact: true,
+        customAttribution: "Подложка: Natural Earth (public domain)",
+      },
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
     this.map = map;

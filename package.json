@@ -11,6 +11,9 @@
     "build:api": "pnpm --filter @uwt/db generate && pnpm --filter @uwt/api build",
     "dev": "pnpm --filter @uwt/web dev",
     "gen:data": "pnpm --filter @uwt/etl gen:demo",
+    "gen:demo": "pnpm --filter @uwt/etl gen:demo",
+    "gen:real": "pnpm --filter @uwt/etl gen:real",
+    "gen:basemap": "pnpm --filter @uwt/etl gen:basemap",
     "test": "pnpm -r --if-present test",
     "typecheck": "pnpm -r --if-present typecheck"
   },

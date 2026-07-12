@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "gen:demo": "tsx src/generate-demo.ts",
+    "gen:real": "tsx src/generate-real.ts",
+    "gen:basemap": "tsx src/build-basemap.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

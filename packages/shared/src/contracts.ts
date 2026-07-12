@@ -135,6 +135,14 @@ export const manifestSchema = z.object({
   generatedAt: z.string(),
   /** Демо-данные: синтетическое приближение, не для цитирования. */
   demo: z.boolean(),
+  /** Происхождение слоёв датасета: что реальное, что приближение. */
+  coverage: z
+    .object({
+      geometry: z.string(), // 'deepstate' | 'approximate' | 'synthetic'
+      losses: z.string(), // 'ua_general_staff' | 'synthetic'
+      events: z.string(), // 'key-only' | 'synthetic'
+    })
+    .optional(),
   firstDate: z.string(),
   lastDate: z.string(),
   days: z.record(z.object({ v: z.number(), preliminary: z.boolean() })),
