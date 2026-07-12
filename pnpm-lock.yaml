@@ -66,6 +66,9 @@ importers:
       '@uwt/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      fflate:
+        specifier: ^0.8.2
+        version: 0.8.3
     devDependencies:
       '@types/geojson':
         specifier: ^7946.0.15

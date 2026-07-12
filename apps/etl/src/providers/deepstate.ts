@@ -33,7 +33,18 @@ function itemDate(it: HistoryItem): string | null {
 }
 
 async function fetchJson<T>(url: string, timeoutMs = 20000): Promise<T> {
-  const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+  // API DeepState с 2025 отдаёт 401 без авторизации — поддерживаем токен
+  // (UWT_DEEPSTATE_TOKEN) и браузероподобные заголовки.
+  const headers: Record<string, string> = {
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36",
+    Accept: "application/json",
+    Referer: "https://deepstatemap.live/",
+  };
+  if (process.env.UWT_DEEPSTATE_TOKEN) {
+    headers.Authorization = `Bearer ${process.env.UWT_DEEPSTATE_TOKEN}`;
+  }
+  const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs), headers });
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${url}`);
   return (await res.json()) as T;
 }

@@ -14,6 +14,7 @@ import { approxGeometryProvider, buildDataset } from "./dataset";
 import { keyEventsOnlyProvider } from "./providers/demo";
 import { tryLoadDeepstate } from "./providers/deepstate";
 import { loadGenstaffLosses } from "./providers/genstaff";
+import { tryLoadOwlmaps } from "./providers/owlmaps";
 
 const OUT_DIR =
   process.env.UWT_DATA_DIR ??
@@ -26,16 +27,23 @@ async function main(): Promise<void> {
   const losses = await loadGenstaffLosses();
   const lastDate = process.env.UWT_LAST_DATE ?? losses.lastDate;
 
-  const deepstate = await tryLoadDeepstate(FIRST_DATE, lastDate, CACHE_DIR);
-  const geometry = deepstate ?? approxGeometryProvider("approx");
+  // цепочка реальных источников геометрии: DeepState → UA Control Map → приближение
+  const real =
+    (await tryLoadDeepstate(FIRST_DATE, lastDate, CACHE_DIR)) ??
+    (await tryLoadOwlmaps(
+      FIRST_DATE,
+      lastDate,
+      path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../.cache/owlmaps"),
+    ));
+  const geometry = real ?? approxGeometryProvider("approx");
 
   buildDataset({
     outDir: OUT_DIR,
     firstDate: FIRST_DATE,
-    lastDate: deepstate ? deepstate.lastDate : lastDate,
+    lastDate: real ? real.lastDate : lastDate,
     demo: false,
     coverage: {
-      geometry: deepstate ? "deepstate" : "approximate",
+      geometry: real ? real.sourceCode : "approximate",
       losses: "ua_general_staff",
       events: "key-only",
     },

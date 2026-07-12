@@ -34,6 +34,8 @@ export function DemoBanner() {
     );
   }
 
+  const geoLabel =
+    data.coverage?.geometry === "owlmaps" ? "UA Control Map" : "DeepState";
   return (
     <Link
       href="/methodology"
@@ -41,7 +43,7 @@ export function DemoBanner() {
       style={{ color: "var(--text-secondary)" }}
       title="Открыть методологию"
     >
-      Данные: DeepState · Генштаб ВСУ
+      Данные: {geoLabel} · Генштаб ВСУ
     </Link>
   );
 }

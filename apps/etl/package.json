@@ -12,7 +12,8 @@
   "dependencies": {
     "@turf/turf": "^7.2.0",
     "@uwt/geo": "workspace:*",
-    "@uwt/shared": "workspace:*"
+    "@uwt/shared": "workspace:*",
+    "fflate": "^0.8.2"
   },
   "devDependencies": {
     "@types/geojson": "^7946.0.15",

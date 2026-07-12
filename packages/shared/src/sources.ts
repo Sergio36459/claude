@@ -52,6 +52,14 @@ export const SOURCES: readonly SourceInfo[] = [
       "Оперативная карта; геометрия сверяется с ISW перед публикацией.",
   },
   {
+    code: "owlmaps",
+    name: "UA Control Map",
+    url: "https://uacontrolmap.com",
+    kind: "operational_map",
+    reliabilityNote:
+      "Карта контроля Project Owl (uacontrolmap.com); ежедневные архивы публикуются на GitHub (owlmaps/UAControlMapBackups).",
+  },
+  {
     code: "ua_general_staff",
     name: "Генштаб ВСУ",
     url: "https://www.zsu.gov.ua",

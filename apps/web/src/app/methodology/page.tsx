@@ -20,9 +20,10 @@ export default function MethodologyPage() {
           <li>
             <strong style={{ color: "var(--text-primary)" }}>Реальные данные</strong>{" "}
             (<code>pnpm gen:real</code>): потери — официальные ежедневные сводки Генштаба ВСУ
-            (зеркало russianwarship.rip), по текущий день; геометрия фронта — полная история
-            DeepState (при доступной сети; иначе — кейфрейм-приближение с явной пометкой);
-            события — только реальные ключевые.
+            (зеркало russianwarship.rip), по текущий день; геометрия фронта — DeepState (при
+            наличии токена API) либо ежедневные архивы UA Control Map / Project Owl
+            (uacontrolmap.com, недельные кейфреймы с интерполяцией); если сеть закрыта —
+            кейфрейм-приближение с явной пометкой; события — только реальные ключевые.
           </li>
           <li>
             <strong style={{ color: "var(--text-primary)" }}>Демо</strong>{" "}
