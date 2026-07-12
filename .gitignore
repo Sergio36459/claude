@@ -1,0 +1,18 @@
+# deps / build
+node_modules/
+dist/
+.next/
+*.tsbuildinfo
+.turbo/
+
+# generated demo data (recreate with `pnpm gen:data`)
+apps/web/public/data/
+
+# env & local
+.env
+.env.local
+*.local
+
+# misc
+.DS_Store
+coverage/

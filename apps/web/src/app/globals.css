@@ -1,0 +1,122 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+:root {
+  /* роли из референс-палитры дата-виза (docs/07 §3) */
+  --surface-1: #fcfcfb;
+  --plane: #f9f9f7;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --grid: #e1e0d9;
+  --baseline: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.1);
+  --panel: rgba(252, 252, 251, 0.88);
+  /* серии графиков: цвет закреплён за источником, порядок фиксирован */
+  --series-canonical: #2a78d6; /* deepstate/isw — каноническая геометрия */
+  --series-oryx: #1baf7a;
+  --series-ua-gs: #eda100;
+  --series-western: #008300;
+  --series-ru-mod: #4a3aa7;
+  --series-mediazona: #e87ba4;
+  --series-ualosses: #eb6834;
+  /* карта: конвенция военных карт, не палитра графиков */
+  --map-ru-fill: #d03b3b;
+  --map-ru-line: #b91c1c;
+  --map-gain-ru: #d03b3b;
+  --map-gain-ua: #2a78d6;
+}
+
+.dark {
+  --surface-1: #1a1a19;
+  --plane: #0d0d0d;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --grid: #2c2c2a;
+  --baseline: #383835;
+  --border: rgba(255, 255, 255, 0.1);
+  --panel: rgba(26, 26, 25, 0.88);
+  --series-canonical: #3987e5;
+  --series-oryx: #199e70;
+  --series-ua-gs: #c98500;
+  --series-western: #008300;
+  --series-ru-mod: #9085e9;
+  --series-mediazona: #d55181;
+  --series-ualosses: #d95926;
+  --map-ru-fill: #e34948;
+  --map-ru-line: #ef6a6a;
+  --map-gain-ru: #e34948;
+  --map-gain-ua: #3987e5;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--plane);
+  color: var(--text-primary);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.panel-glass {
+  background: var(--panel);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ползунок таймлайна */
+input[type="range"].timeline-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--grid);
+  outline: none;
+  cursor: pointer;
+}
+input[type="range"].timeline-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--series-canonical);
+  border: 2px solid var(--surface-1);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+input[type="range"].timeline-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--series-canonical);
+  border: 2px solid var(--surface-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.maplibregl-popup-content {
+  background: var(--surface-1);
+  color: var(--text-primary);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  font-family: inherit;
+}
+.maplibregl-popup-tip {
+  border-top-color: var(--surface-1) !important;
+}

@@ -1,0 +1,314 @@
+// Схема БД — зеркало docs/04-database.md.
+// Геометрия PostGIS объявлена как Unsupported: все гео-операции идут через
+// типизированный raw SQL в src/queries (единственное место сырого SQL).
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis, pg_trgm]
+}
+
+enum ControlSide {
+  ru
+  ua
+  contested
+
+  @@map("control_side")
+}
+
+enum DeltaKind {
+  gained_ru
+  gained_ua
+
+  @@map("delta_kind")
+}
+
+enum EventType {
+  front_change
+  combat
+  missile_strike
+  uav_strike
+  airstrike
+  international
+  political
+  economic
+  sanctions
+  statement
+  other
+
+  @@map("event_type")
+}
+
+enum Confidence {
+  confirmed
+  reported
+  claimed
+  disputed
+
+  @@map("confidence")
+}
+
+enum LossSide {
+  ru
+  ua
+
+  @@map("loss_side")
+}
+
+enum EquipmentCategory {
+  tank
+  ifv
+  apc
+  artillery
+  mlrs
+  air_defense
+  aircraft
+  helicopter
+  uav
+  ship
+  other
+
+  @@map("equipment_category")
+}
+
+enum EquipmentStatus {
+  destroyed
+  damaged
+  abandoned
+  captured
+  total_claimed
+
+  @@map("equipment_status")
+}
+
+model Source {
+  id              Int    @id @default(autoincrement()) @db.SmallInt
+  code            String @unique
+  name            String
+  url             String?
+  kind            String
+  reliabilityNote String? @map("reliability_note")
+  priority        Int     @db.SmallInt
+
+  events             EventSource[]
+  personnelEstimates PersonnelLossEstimate[]
+  equipmentRecords   EquipmentLossRecord[]
+  controlSnapshots   ControlSnapshot[]
+  frontlines         Frontline[]
+  importRuns         ImportRun[]
+
+  @@map("sources")
+}
+
+model Place {
+  id            BigInt  @id @default(autoincrement())
+  kind          String
+  nameUk        String  @map("name_uk")
+  nameEn        String  @map("name_en")
+  nameAlt       String[] @map("name_alt")
+  adminParentId BigInt? @map("admin_parent_id")
+  adminParent   Place?  @relation("PlaceHierarchy", fields: [adminParentId], references: [id])
+  children      Place[] @relation("PlaceHierarchy")
+  population    Int?
+  geom          Unsupported("geometry(Point,4326)")?
+  boundary      Unsupported("geometry(MultiPolygon,4326)")?
+  events        Event[]
+
+  @@map("places")
+}
+
+model Operation {
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique
+  titleUk   String   @map("title_uk")
+  titleEn   String   @map("title_en")
+  dateStart DateTime @map("date_start") @db.Date
+  dateEnd   DateTime? @map("date_end") @db.Date
+  area      Unsupported("geometry(MultiPolygon,4326)")?
+  events    Event[]
+
+  @@map("operations")
+}
+
+model ImportRun {
+  id         BigInt    @id @default(autoincrement())
+  sourceId   Int?      @map("source_id") @db.SmallInt
+  source     Source?   @relation(fields: [sourceId], references: [id])
+  startedAt  DateTime  @default(now()) @map("started_at") @db.Timestamptz
+  finishedAt DateTime? @map("finished_at") @db.Timestamptz
+  status     String
+  stats      Json?
+  etlVersion String    @map("etl_version")
+
+  events           Event[]
+  controlSnapshots ControlSnapshot[]
+
+  @@map("import_runs")
+}
+
+model Day {
+  date           DateTime @id @db.Date
+  isPublished    Boolean  @default(false) @map("is_published")
+  publishVersion Int      @default(0) @map("publish_version")
+  isPreliminary  Boolean  @default(true) @map("is_preliminary")
+  publishedAt    DateTime? @map("published_at") @db.Timestamptz
+
+  stats              DailyStats?
+  events             Event[]
+  controlSnapshots   ControlSnapshot[]
+  controlDeltas      ControlDelta[]
+  frontline          Frontline?
+  personnelEstimates PersonnelLossEstimate[]
+  equipmentRecords   EquipmentLossRecord[]
+
+  @@map("days")
+}
+
+model DailyStats {
+  date            DateTime @id @db.Date
+  day             Day      @relation(fields: [date], references: [date])
+  areaRuSqkm      Decimal? @map("area_ru_sqkm") @db.Decimal(10, 1)
+  areaChangeSqkm  Decimal? @map("area_change_sqkm") @db.Decimal(8, 2)
+  frontlineLenKm  Decimal? @map("frontline_len_km") @db.Decimal(8, 1)
+  eventsTotal     Int      @default(0) @map("events_total")
+  eventsByType    Json     @default("{}") @map("events_by_type")
+  strikesMissile  Int?     @map("strikes_missile")
+  strikesUav      Int?     @map("strikes_uav")
+  computedAt      DateTime @map("computed_at") @db.Timestamptz
+
+  @@map("daily_stats")
+}
+
+model ControlSnapshot {
+  id          BigInt      @id @default(autoincrement())
+  date        DateTime    @db.Date
+  day         Day         @relation(fields: [date], references: [date])
+  side        ControlSide
+  geom        Unsupported("geometry(MultiPolygon,4326)")
+  isKeyframe  Boolean     @default(false) @map("is_keyframe")
+  sourceId    Int         @map("source_id") @db.SmallInt
+  source      Source      @relation(fields: [sourceId], references: [id])
+  importRunId BigInt?     @map("import_run_id")
+  importRun   ImportRun?  @relation(fields: [importRunId], references: [id])
+
+  @@unique([date, side])
+  @@map("control_snapshots")
+}
+
+model ControlDelta {
+  id       BigInt    @id @default(autoincrement())
+  date     DateTime  @db.Date
+  day      Day       @relation(fields: [date], references: [date])
+  kind     DeltaKind
+  geom     Unsupported("geometry(MultiPolygon,4326)")
+  areaSqkm Decimal   @map("area_sqkm") @db.Decimal(8, 2)
+
+  @@unique([date, kind])
+  @@map("control_deltas")
+}
+
+model Frontline {
+  date     DateTime @id @db.Date
+  day      Day      @relation(fields: [date], references: [date])
+  geom     Unsupported("geometry(MultiLineString,4326)")
+  lengthKm Decimal  @map("length_km") @db.Decimal(8, 1)
+  sourceId Int      @map("source_id") @db.SmallInt
+  source   Source   @relation(fields: [sourceId], references: [id])
+
+  @@map("frontlines")
+}
+
+model Event {
+  id          BigInt      @id @default(autoincrement())
+  date        DateTime    @db.Date
+  day         Day         @relation(fields: [date], references: [date])
+  timeUtc     DateTime?   @map("time_utc") @db.Time
+  type        EventType
+  title       String
+  description String?
+  geom        Unsupported("geometry(Point,4326)")?
+  placeId     BigInt?     @map("place_id")
+  place       Place?      @relation(fields: [placeId], references: [id])
+  operationId Int?        @map("operation_id")
+  operation   Operation?  @relation(fields: [operationId], references: [id])
+  confidence  Confidence
+  isKeyEvent  Boolean     @default(false) @map("is_key_event")
+  importRunId BigInt?     @map("import_run_id")
+  importRun   ImportRun?  @relation(fields: [importRunId], references: [id])
+  dedupGroup  BigInt?     @map("dedup_group")
+
+  translations EventTranslation[]
+  sources      EventSource[]
+
+  @@index([date])
+  @@index([type, date])
+  @@map("events")
+}
+
+model EventTranslation {
+  eventId     BigInt @map("event_id")
+  event       Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  lang        String
+  title       String
+  description String?
+
+  @@id([eventId, lang])
+  @@map("event_translations")
+}
+
+model EventSource {
+  eventId     BigInt    @map("event_id")
+  event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sourceId    Int       @map("source_id") @db.SmallInt
+  source      Source    @relation(fields: [sourceId], references: [id])
+  url         String
+  sourceRef   String?   @map("source_ref")
+  publishedAt DateTime? @map("published_at") @db.Timestamptz
+
+  @@id([eventId, sourceId, url])
+  @@map("event_sources")
+}
+
+/// Инвариант проекта: одна строка = один источник. Агрегатов между
+/// источниками не существует ни в одной таблице.
+model PersonnelLossEstimate {
+  id          BigInt   @id @default(autoincrement())
+  date        DateTime @db.Date
+  day         Day      @relation(fields: [date], references: [date])
+  side        LossSide
+  sourceId    Int      @map("source_id") @db.SmallInt
+  source      Source   @relation(fields: [sourceId], references: [id])
+  metric      String
+  valueMin    Int      @map("value_min")
+  valueMax    Int      @map("value_max")
+  methodNote  String?  @map("method_note")
+  url         String
+  importRunId BigInt?  @map("import_run_id")
+
+  @@unique([date, side, sourceId, metric])
+  @@index([side, sourceId, metric, date])
+  @@map("personnel_loss_estimates")
+}
+
+model EquipmentLossRecord {
+  id          BigInt            @id @default(autoincrement())
+  date        DateTime          @db.Date
+  day         Day               @relation(fields: [date], references: [date])
+  side        LossSide
+  sourceId    Int               @map("source_id") @db.SmallInt
+  source      Source            @relation(fields: [sourceId], references: [id])
+  category    EquipmentCategory
+  status      EquipmentStatus
+  count       Int
+  url         String?
+  importRunId BigInt?           @map("import_run_id")
+
+  @@unique([date, side, sourceId, category, status])
+  @@index([side, sourceId, category, date])
+  @@map("equipment_loss_records")
+}

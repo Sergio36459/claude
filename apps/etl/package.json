@@ -1,0 +1,21 @@
+{
+  "name": "@uwt/etl",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "gen:demo": "tsx src/generate-demo.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@turf/turf": "^7.2.0",
+    "@uwt/geo": "workspace:*",
+    "@uwt/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/geojson": "^7946.0.15",
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
