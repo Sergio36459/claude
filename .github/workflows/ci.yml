@@ -21,6 +21,11 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # без сгенерированного клиента типы @prisma/client — заглушки,
+      # и typecheck apps/api падает
+      - name: Generate Prisma client
+        run: pnpm --filter @uwt/db generate
+
       - name: Unit tests
         run: pnpm test
 
