@@ -147,7 +147,9 @@ export class MapController {
           // GPU-переход для кроссфейда задаётся в showDay через
           // setPaintProperty("fill-opacity-transition", …) — docs/06 §5.2
           paint: {
-            "fill-color": ruFill,
+            // side='ua' — зоны, занятые ВСУ на территории РФ (Курская
+            // операция): синим; остальное — контроль РФ красным
+            "fill-color": ["match", ["get", "side"], "ua", gainUa, ruFill],
             "fill-opacity": 0,
           },
         },

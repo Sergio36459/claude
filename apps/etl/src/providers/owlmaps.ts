@@ -65,8 +65,50 @@ function parseCoords(block: string): LngLat[] {
   return out;
 }
 
+/** Граница Украины из собранной подложки — для отсечения справочных слоёв внутри страны. */
+let ukraineBoundary: Feature<Polygon | import("geojson").MultiPolygon> | null | undefined;
+
+function loadUkraineBoundary(): typeof ukraineBoundary {
+  if (ukraineBoundary !== undefined) return ukraineBoundary;
+  try {
+    const file = path.resolve(
+      path.dirname(new URL(import.meta.url).pathname),
+      "../../../web/public/basemap/countries.geojson",
+    );
+    const fc = JSON.parse(fs.readFileSync(file, "utf8")) as {
+      features: Array<Feature<Polygon | import("geojson").MultiPolygon>>;
+    };
+    ukraineBoundary =
+      fc.features.find((f) => (f.properties as { ua?: number } | null)?.ua === 1) ?? null;
+  } catch {
+    ukraineBoundary = null;
+  }
+  if (!ukraineBoundary) {
+    console.warn(
+      "owlmaps: граница Украины не найдена (pnpm gen:basemap) — зоны ВСУ на терр. РФ отключены.",
+    );
+  }
+  return ukraineBoundary;
+}
+
+/** Центр кольца вне границ Украины (зона Курской операции — в РФ). */
+function isOutsideUkraine(ring: LngLat[]): boolean {
+  const ua = loadUkraineBoundary();
+  if (!ua) return false; // консервативно: без границы не классифицируем
+  try {
+    const centroid = turf.centerOfMass(turf.polygon([[...ring, ring[0]!]]));
+    return !turf.booleanPointInPolygon(centroid, ua);
+  } catch {
+    return false;
+  }
+}
+
 interface ParsedDay {
-  /** имя полигона → внешние кольца (для интерполяции по имени) */
+  /**
+   * имя полигона → внешние кольца (для интерполяции по имени).
+   * Ключи с префиксом "ua:" — зоны под контролем ВСУ на территории РФ
+   * (Курская операция 2024–2025 и т.п.), рендерятся синим.
+   */
   zones: Map<string, LngLat[][]>;
   /** имя линии → координаты */
   lines: Map<string, LngLat[]>;
@@ -94,15 +136,23 @@ export function parseControlKmz(kmz: Uint8Array): ParsedDay {
       if (!styleHex) continue;
       const r = parseInt(styleHex.slice(0, 2), 16);
       const b = parseInt(styleHex.slice(4, 6), 16);
-      if (r <= b) continue; // не красный → не контроль РФ
-      if (/^ukrainian/i.test(name) || /transnistria/i.test(name)) continue;
+      const isRed = r > b; // контроль РФ
+      // синие «*Incursion*/*Kursk*» — кандидаты в зоны контроля ВСУ на
+      // территории РФ (Курская операция); «Presence»/«Counterattack» —
+      // справочные слои ВНУТРИ Украины, их не берём. Ниже дополнительная
+      // проверка: центр зоны должен лежать вне границ Украины.
+      const isUaCandidate = !isRed && /(incursion|kursk)/i.test(name);
+      if (!isRed && !isUaCandidate) continue;
+      if (isRed && (/^ukrainian/i.test(name) || /transnistria/i.test(name))) continue;
       const rings: LngLat[][] = [];
       for (const poly of body.matchAll(/<Polygon>([\s\S]*?)<\/Polygon>/g)) {
         const outer = poly[1]!.match(/<outerBoundaryIs>([\s\S]*?)<\/outerBoundaryIs>/);
         const ring = parseCoords(outer ? outer[1]! : poly[1]!);
         if (ring.length >= 4) rings.push(ring);
       }
-      if (rings.length > 0) zones.set(name, rings);
+      if (rings.length === 0) continue;
+      if (isUaCandidate && !isOutsideUkraine(rings[0]!)) continue;
+      zones.set(isUaCandidate ? `ua:${name}` : name, rings);
     }
   }
 
@@ -196,26 +246,31 @@ function keyframeToGeometry(zones: Map<string, LngLat[][]>, lines: Map<string, L
   const polygons = new Map<string, Feature<Polygon>>();
   let frontLen = 0;
   for (const [name, rings] of zones) {
+    const side = name.startsWith("ua:") ? "ua" : "ru";
     rings.forEach((ring, i) => {
       const closed = ring[0] === ring[ring.length - 1] ? ring : [...ring, ring[0]!];
       try {
-        const poly = turf.polygon([closed]);
+        const poly = turf.polygon([closed], { side, segmentId: `${name}#${i}` });
         if (turf.area(poly) / 1e6 < 1) return;
-        polygons.set(`${name}#${i}`, poly);
+        polygons.set(`${name}#${i}`, poly as Feature<Polygon>);
       } catch {
         /* вырожденное кольцо */
       }
     });
   }
-  // площадь — через union: зоны перекрываются («Advances» поверх осей),
-  // простая сумма завысила бы контроль на ~20%
+  // площадь контроля РФ — через union: зоны перекрываются («Advances»
+  // поверх осей), простая сумма завысила бы контроль на ~20%.
+  // Зоны ВСУ на территории РФ (ua:) в статистику площади не входят.
+  const ruPolys = [...polygons.entries()]
+    .filter(([id]) => !id.startsWith("ua:"))
+    .map(([, p]) => p);
   let area = 0;
   try {
-    const fc = turf.featureCollection([...polygons.values()]);
-    const merged = polygons.size > 1 ? turf.union(fc) : [...polygons.values()][0];
+    const merged =
+      ruPolys.length > 1 ? turf.union(turf.featureCollection(ruPolys)) : ruPolys[0];
     if (merged) area = turf.area(merged) / 1e6;
   } catch {
-    for (const p of polygons.values()) area += turf.area(p) / 1e6;
+    for (const p of ruPolys) area += turf.area(p) / 1e6;
   }
   for (const [name, coords] of lines) {
     fronts.set(name, coords);
@@ -229,13 +284,26 @@ export async function tryLoadOwlmaps(
   lastDate: string,
   cacheDir: string,
 ): Promise<(GeometryProvider & { lastDate: string }) | null> {
+  fs.mkdirSync(cacheDir, { recursive: true });
   let entries: ArchiveEntry[];
   try {
     entries = await listArchive(firstDate, Number(lastDate.slice(0, 4)));
     if (entries.length === 0) throw new Error("архив пуст");
   } catch (e) {
-    console.warn(`UA Control Map недоступен (${(e as Error).message}).`);
-    return null;
+    // офлайн: используем ранее скачанные KMZ из кэша (имена = даты)
+    const cached: ArchiveEntry[] = fs
+      .readdirSync(cacheDir)
+      .filter((f) => f.endsWith(".kmz") && dateFromName(f))
+      .map((f) => ({ date: dateFromName(f)!, url: `file://${path.join(cacheDir, f)}` }))
+      .sort((a, b) => (a.date < b.date ? -1 : 1));
+    if (cached.length === 0) {
+      console.warn(`UA Control Map недоступен (${(e as Error).message}).`);
+      return null;
+    }
+    console.warn(
+      `UA Control Map: сеть недоступна (${(e as Error).message}) — используем кэш: ${cached.length} файлов.`,
+    );
+    entries = cached;
   }
 
   // сэмплирование: каждый STEP_DAYS-й день + последний доступный
@@ -253,7 +321,6 @@ export async function tryLoadOwlmaps(
     `UA Control Map: ${entries.length} дней в архиве, скачиваем ${sampled.length} кейфреймов (шаг ${STEP_DAYS} дн.)`,
   );
 
-  fs.mkdirSync(cacheDir, { recursive: true });
   const keyframes: Keyframe[] = [];
   for (const e of sampled) {
     const cacheFile = path.join(cacheDir, `${e.date}.kmz`);
@@ -273,13 +340,21 @@ export async function tryLoadOwlmaps(
       console.warn(`owlmaps: пропуск ${e.date} (${(err as Error).message})`);
     }
   }
-  if (keyframes.length < 2) {
-    console.warn("owlmaps: недостаточно кейфреймов.");
+  if (keyframes.length < 1) {
+    console.warn("owlmaps: нет ни одного кейфрейма.");
     return null;
+  }
+  if (keyframes.length === 1) {
+    console.warn(
+      "owlmaps: один кейфрейм — геометрия будет статичной (для истории нужен доступ к api.github.com).",
+    );
   }
 
   const kfLast = keyframes[keyframes.length - 1]!;
   const cache = new Map<string, DayGeometry>();
+  // мемоизация краёв: до первого/после последнего кейфрейма геометрия статична
+  let gFirst: DayGeometry | null = null;
+  let gLast: DayGeometry | null = null;
 
   const computeDay = (date: string): DayGeometry => {
     const hit = cache.get(date);
@@ -287,9 +362,9 @@ export async function tryLoadOwlmaps(
     const t = dateToMs(date);
     let g: DayGeometry;
     if (t <= dateToMs(keyframes[0]!.date)) {
-      g = keyframeToGeometry(keyframes[0]!.zones, keyframes[0]!.lines);
+      g = gFirst ??= keyframeToGeometry(keyframes[0]!.zones, keyframes[0]!.lines);
     } else if (t >= dateToMs(kfLast.date)) {
-      g = keyframeToGeometry(kfLast.zones, kfLast.lines);
+      g = gLast ??= keyframeToGeometry(kfLast.zones, kfLast.lines);
     } else {
       let i = 1;
       while (i < keyframes.length && dateToMs(keyframes[i]!.date) < t) i++;

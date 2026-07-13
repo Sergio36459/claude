@@ -1,9 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { DemoBanner } from "@/components/DemoBanner";
 import { HotkeysModal } from "@/components/HotkeysModal";
-import { Legend } from "@/components/map/Legend";
 import { MapView } from "@/components/map/MapView";
 import { EventsPanel } from "@/components/panels/EventsPanel";
 import { StatsPanel } from "@/components/panels/StatsPanel";
@@ -17,6 +17,11 @@ export default function MapPage() {
   const statsOpen = useUiStore((s) => s.statsPanelOpen);
   const toggleEvents = useUiStore((s) => s.toggleEventsPanel);
   const toggleStats = useUiStore((s) => s.toggleStatsPanel);
+
+  // элементы управления картой уезжают левее открытой панели статистики (CSS)
+  useEffect(() => {
+    document.documentElement.classList.toggle("stats-open", statsOpen);
+  }, [statsOpen]);
 
   return (
     <main className="relative h-dvh w-full overflow-hidden">
@@ -81,11 +86,6 @@ export default function MapPage() {
       >
         {statsOpen ? "›" : "Статистика"}
       </button>
-
-      {/* легенда */}
-      <div className="absolute bottom-40 right-3 z-10 md:bottom-44 md:right-[340px]">
-        {!statsOpen && <Legend />}
-      </div>
 
       {/* таймлайн */}
       <div className="absolute inset-x-3 bottom-3 z-20">

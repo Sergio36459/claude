@@ -110,6 +110,24 @@ input[type="range"].timeline-slider::-moz-range-thumb {
   }
 }
 
+/* элементы управления картой не должны прятаться под таймлайном */
+.maplibregl-ctrl-bottom-right,
+.maplibregl-ctrl-bottom-left {
+  bottom: 150px;
+}
+/* …и за открытой панелью статистики (класс ставит page.tsx) */
+@media (min-width: 768px) {
+  html.stats-open .maplibregl-ctrl-bottom-right {
+    right: 336px;
+  }
+}
+@media (max-width: 767px) {
+  .maplibregl-ctrl-bottom-right,
+  .maplibregl-ctrl-bottom-left {
+    bottom: 170px;
+  }
+}
+
 .maplibregl-popup-content {
   background: var(--surface-1);
   color: var(--text-primary);

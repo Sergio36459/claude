@@ -148,6 +148,11 @@ function dayDiff(date: string, prev: DayGeometry | null, cur: DayGeometry): Diff
   for (const id of ids) {
     const a = prev.polygons.get(id) ?? null;
     const b = cur.polygons.get(id) ?? null;
+    // для зон ВСУ на территории РФ (ua:) семантика обратная:
+    // рост зоны = занято ВСУ (синяя пульсация), сжатие = возвращено РФ
+    const isUaZone = id.startsWith("ua:");
+    const growKind = isUaZone ? "gained_ua" : "gained_ru";
+    const shrinkKind = isUaZone ? "gained_ru" : "gained_ua";
     const push = (f: Feature<Polygon | MultiPolygon> | null, kind: string) => {
       if (!f) return;
       for (const piece of turf.flatten(f).features) {
@@ -164,12 +169,12 @@ function dayDiff(date: string, prev: DayGeometry | null, cur: DayGeometry): Diff
     };
     try {
       if (a && b) {
-        push(turf.difference(turf.featureCollection([b, a])), "gained_ru");
-        push(turf.difference(turf.featureCollection([a, b])), "gained_ua");
+        push(turf.difference(turf.featureCollection([b, a])), growKind);
+        push(turf.difference(turf.featureCollection([a, b])), shrinkKind);
       } else if (a && !b) {
-        push(a, "gained_ua");
+        push(a, shrinkKind);
       } else if (!a && b) {
-        push(b, "gained_ru");
+        push(b, growKind);
       }
     } catch {
       /* вырожденная геометрия — день без диф-слоя */
@@ -198,7 +203,7 @@ function controlGeojson(
       type: "Feature",
       geometry: { type: "Polygon", coordinates: [roundCoords(ring)] },
       properties: {
-        side: "ru",
+        side: (poly.properties as { side?: string } | null)?.side ?? "ru",
         date,
         segmentId: id,
         areaSqkm: Math.round((turf.area(poly) / 1e6) * 10) / 10,

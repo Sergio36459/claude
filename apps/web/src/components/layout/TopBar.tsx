@@ -4,11 +4,60 @@ import Link from "next/link";
 import { useState } from "react";
 import { useUiStore, type LayerToggles } from "@/stores/uiStore";
 
-const LAYER_LABELS: Record<keyof LayerToggles, string> = {
-  control: "Зоны контроля",
-  frontline: "Линия фронта",
-  diff: "Изменения за день",
-  events: "События",
+/** Строка = переключатель слоя + образец легенды (легенда объединена со «Слоями»). */
+const LAYER_META: Record<keyof LayerToggles, { label: string; swatch: React.ReactNode }> = {
+  control: {
+    label: "Зоны контроля",
+    swatch: (
+      <span className="flex gap-0.5">
+        <span
+          className="inline-block h-3 w-3 rounded-sm"
+          style={{ background: "var(--map-ru-fill)", opacity: 0.45 }}
+          title="под контролем РФ"
+        />
+        <span
+          className="inline-block h-3 w-3 rounded-sm"
+          style={{ background: "var(--map-gain-ua)", opacity: 0.45 }}
+          title="занято ВСУ (терр. РФ)"
+        />
+      </span>
+    ),
+  },
+  frontline: {
+    label: "Линия фронта",
+    swatch: (
+      <span
+        className="my-1.5 inline-block h-0.5 w-6 rounded"
+        style={{ background: "var(--map-ru-line)" }}
+      />
+    ),
+  },
+  diff: {
+    label: "Изменения за день",
+    swatch: (
+      <span className="flex gap-0.5">
+        <span
+          className="inline-block h-3 w-3 rounded-sm"
+          style={{ background: "var(--map-gain-ru)", opacity: 0.7 }}
+          title="занято"
+        />
+        <span
+          className="inline-block h-3 w-3 rounded-sm"
+          style={{ background: "var(--map-gain-ua)", opacity: 0.7 }}
+          title="освобождено"
+        />
+      </span>
+    ),
+  },
+  events: {
+    label: "События",
+    swatch: (
+      <span
+        className="inline-block h-2.5 w-2.5 rounded-full"
+        style={{ background: "#eda100" }}
+      />
+    ),
+  },
 };
 
 export function TopBar() {
@@ -55,15 +104,24 @@ export function TopBar() {
         </button>
         {layersOpen && (
           <div
-            className="panel-glass absolute right-0 top-full z-30 mt-1 w-48 rounded-lg p-2"
+            className="panel-glass absolute right-0 top-full z-30 mt-1 w-64 rounded-lg p-2"
             role="menu"
           >
-            {(Object.keys(LAYER_LABELS) as Array<keyof LayerToggles>).map((k) => (
-              <label key={k} className="flex items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-black/5 dark:hover:bg-white/5" style={{ color: "var(--text-secondary)" }}>
+            {(Object.keys(LAYER_META) as Array<keyof LayerToggles>).map((k) => (
+              <label
+                key={k}
+                className="flex items-center gap-2 rounded px-1.5 py-1.5 text-sm hover:bg-black/5 dark:hover:bg-white/5"
+                style={{ color: "var(--text-secondary)" }}
+              >
                 <input type="checkbox" checked={layers[k]} onChange={() => toggleLayer(k)} />
-                {LAYER_LABELS[k]}
+                {LAYER_META[k].swatch}
+                {LAYER_META[k].label}
               </label>
             ))}
+            <p className="px-1.5 pt-1 text-[10px] leading-snug" style={{ color: "var(--text-muted)" }}>
+              Красное — под контролем РФ, синее — занято ВСУ; изменения за день: красная
+              пульсация — занято, синяя — освобождено.
+            </p>
           </div>
         )}
       </div>

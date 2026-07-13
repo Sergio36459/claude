@@ -5,8 +5,10 @@ dist/
 *.tsbuildinfo
 .turbo/
 
-# generated demo data (recreate with `pnpm gen:data`)
+# generated data (recreate with `pnpm gen:real` / `pnpm gen:demo`)
 apps/web/public/data/
+# кэш скачанных архивов источников (DeepState, UA Control Map)
+apps/etl/.cache/
 
 # env & local
 .env
