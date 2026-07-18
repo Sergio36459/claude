@@ -1,10 +1,10 @@
 name: Deploy to GitHub Pages
 
 # Публичный автообновляемый сайт: сборка реальных данных + статический
-# экспорт Next.js. Ежедневный cron пересобирает датасет (потери Генштаба
-# за вчера + свежие архивы UA Control Map) и передеплоивает сайт.
-#
-# Для первого запуска включите Pages: Settings → Pages → Source: GitHub Actions.
+# экспорт Next.js, публикация в ветку gh-pages (создание этой ветки
+# автоматически активирует GitHub Pages для репозитория).
+# Ежедневный cron пересобирает датасет (потери Генштаба за вчера +
+# свежие архивы UA Control Map) и передеплоивает сайт.
 
 on:
   push:
@@ -14,9 +14,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
@@ -25,9 +23,6 @@ concurrency:
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -63,11 +58,12 @@ jobs:
           NEXT_OUTPUT: export
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      # публикация в gh-pages одним orphan-коммитом (история не растёт);
+      # .nojekyll добавляется автоматически — папка _next отдаётся как есть
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: apps/web/out
-
-      - name: Deploy
-        id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: apps/web/out
+          force_orphan: true
+          commit_message: "deploy: ${{ github.sha }}"
