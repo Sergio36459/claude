@@ -1,0 +1,12 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# pnpm ≥ 10.14 читает это отсюда (в package.json поле "pnpm" устарело)
+onlyBuiltDependencies:
+  - "@prisma/client"
+  - "@prisma/engines"
+  - "@swc/core"
+  - esbuild
+  - prisma
+  - sharp

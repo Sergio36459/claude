@@ -1,0 +1,69 @@
+name: Deploy to GitHub Pages
+
+# Публичный автообновляемый сайт: сборка реальных данных + статический
+# экспорт Next.js, публикация в ветку gh-pages (создание этой ветки
+# автоматически активирует GitHub Pages для репозитория).
+# Ежедневный cron пересобирает датасет (потери Генштаба за вчера +
+# свежие архивы UA Control Map) и передеплоивает сайт.
+
+on:
+  push:
+    branches: [main, claude/ukraine-war-timeline-8ukjji]
+  schedule:
+    - cron: "45 3 * * *" # ежедневно, после публикации утренних сводок
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # KMZ-архивы UA Control Map (~850 МБ при полной загрузке) кэшируются:
+      # ежедневный прогон докачивает только новые кейфреймы
+      - name: Restore UA Control Map cache
+        uses: actions/cache@v4
+        with:
+          path: apps/etl/.cache
+          key: owlmaps-kmz-${{ github.run_id }}
+          restore-keys: |
+            owlmaps-kmz-
+
+      - name: Generate real dataset
+        run: pnpm gen:real
+        env:
+          UWT_OWLMAPS_STEP_DAYS: "7"
+
+      - name: Build static site
+        run: pnpm --filter @uwt/shared build && pnpm --filter @uwt/geo build && pnpm --filter @uwt/web build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+          NEXT_OUTPUT: export
+          NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+
+      # публикация в gh-pages одним orphan-коммитом (история не растёт);
+      # .nojekyll добавляется автоматически — папка _next отдаётся как есть
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: apps/web/out
+          force_orphan: true
+          commit_message: "deploy: ${{ github.sha }}"

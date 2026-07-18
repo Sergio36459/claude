@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # без сгенерированного клиента типы @prisma/client — заглушки,
+      # и typecheck apps/api падает
+      - name: Generate Prisma client
+        run: pnpm --filter @uwt/db generate
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Generate demo dataset (short range)
+        run: UWT_LAST_DATE=2022-04-30 pnpm gen:data
+
+      - name: Build web
+        run: pnpm build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+
+      - name: Build API (Prisma generate + tsc)
+        run: pnpm build:api

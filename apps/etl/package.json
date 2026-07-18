@@ -1,0 +1,24 @@
+{
+  "name": "@uwt/etl",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "gen:demo": "tsx src/generate-demo.ts",
+    "gen:real": "tsx src/generate-real.ts",
+    "gen:basemap": "tsx src/build-basemap.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@turf/turf": "^7.2.0",
+    "@uwt/geo": "workspace:*",
+    "@uwt/shared": "workspace:*",
+    "fflate": "^0.8.2"
+  },
+  "devDependencies": {
+    "@types/geojson": "^7946.0.15",
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

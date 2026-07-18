@@ -1,0 +1,25 @@
+{
+  "name": "ukraine-war-timeline",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "pnpm --filter @uwt/shared build && pnpm --filter @uwt/geo build && pnpm --filter @uwt/web build",
+    "build:api": "pnpm --filter @uwt/db generate && pnpm --filter @uwt/api build",
+    "dev": "pnpm --filter @uwt/web dev",
+    "gen:data": "pnpm --filter @uwt/etl gen:demo",
+    "gen:demo": "pnpm --filter @uwt/etl gen:demo",
+    "gen:real": "pnpm --filter @uwt/etl gen:real",
+    "gen:basemap": "pnpm --filter @uwt/etl gen:basemap",
+    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm -r --if-present typecheck"
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2"
+  },
+  "//": "onlyBuiltDependencies перенесён в pnpm-workspace.yaml (pnpm ≥ 10.14)"
+}
