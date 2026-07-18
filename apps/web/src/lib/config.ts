@@ -1,5 +1,8 @@
+/** Префикс приложения при деплое в подпапку (GitHub Pages: /имя-репозитория). */
+export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
 /** База статического data-контракта (CDN в проде, /public/data в dev). */
-export const DATA_URL = process.env.NEXT_PUBLIC_DATA_URL ?? "/data";
+export const DATA_URL = process.env.NEXT_PUBLIC_DATA_URL ?? `${BASE_PATH}/data`;
 
 /** Скорости воспроизведения: 1x = 1 день/секунду. */
 export const PLAYBACK_SPEEDS = [0.25, 0.5, 1, 2, 5, 10, 30, 60] as const;

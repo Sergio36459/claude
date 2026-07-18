@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useUiStore, type LayerToggles } from "@/stores/uiStore";
+import { useUiStore, type GhostMonths, type LayerToggles } from "@/stores/uiStore";
 
 /** Строка = переключатель слоя + образец легенды (легенда объединена со «Слоями»). */
 const LAYER_META: Record<keyof LayerToggles, { label: string; swatch: React.ReactNode }> = {
@@ -65,6 +65,8 @@ export function TopBar() {
   const toggleTheme = useUiStore((s) => s.toggleTheme);
   const layers = useUiStore((s) => s.layers);
   const toggleLayer = useUiStore((s) => s.toggleLayer);
+  const ghostMonths = useUiStore((s) => s.ghostMonths);
+  const setGhostMonths = useUiStore((s) => s.setGhostMonths);
   const setSearchOpen = useUiStore((s) => s.setSearchOpen);
   const setHotkeysOpen = useUiStore((s) => s.setHotkeysOpen);
   const [layersOpen, setLayersOpen] = useState(false);
@@ -118,9 +120,34 @@ export function TopBar() {
                 {LAYER_META[k].label}
               </label>
             ))}
+            <div
+              className="mt-1 flex items-center gap-2 border-t px-1.5 pt-2 text-sm"
+              style={{ borderColor: "var(--grid)", color: "var(--text-secondary)" }}
+            >
+              <span
+                className="inline-block w-6 border-t-2 border-dashed"
+                style={{ borderColor: "var(--text-muted)" }}
+              />
+              <label className="flex flex-1 items-center justify-between gap-2">
+                Фронт в прошлом
+                <select
+                  aria-label="Призрак линии фронта"
+                  className="rounded-md border bg-transparent px-1 py-0.5 text-xs"
+                  style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+                  value={ghostMonths}
+                  onChange={(e) => setGhostMonths(Number(e.target.value) as GhostMonths)}
+                >
+                  <option value={0}>выкл</option>
+                  <option value={1}>−1 мес</option>
+                  <option value={6}>−6 мес</option>
+                  <option value={12}>−1 год</option>
+                </select>
+              </label>
+            </div>
             <p className="px-1.5 pt-1 text-[10px] leading-snug" style={{ color: "var(--text-muted)" }}>
               Красное — под контролем РФ, синее — занято ВСУ; изменения за день: красная
-              пульсация — занято, синяя — освобождено.
+              пульсация — занято, синяя — освобождено. Пунктир — линия фронта выбранной
+              давности.
             </p>
           </div>
         )}

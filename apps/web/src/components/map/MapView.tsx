@@ -3,10 +3,13 @@
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { FeatureCollection } from "geojson";
-import { loadDayGeo, useDayBundle } from "@/lib/data";
+import { FIRST_DATE, addMonths, clampDate } from "@uwt/shared";
+import { fetchers, loadDayGeo, qk, useDayBundle } from "@/lib/data";
 import { MapController, mapBus } from "@/lib/mapController";
 import { useDateStore } from "@/stores/dateStore";
 import { useUiStore } from "@/stores/uiStore";
+
+const EMPTY_FC: FeatureCollection = { type: "FeatureCollection", features: [] };
 
 /** Обёртка над MapController: единственный инстанс карты вне React-дерева. */
 export function MapView() {
@@ -20,6 +23,7 @@ export function MapView() {
   const scrubbing = useDateStore((s) => s.scrubbing);
   const theme = useUiStore((s) => s.theme);
   const layers = useUiStore((s) => s.layers);
+  const ghostMonths = useUiStore((s) => s.ghostMonths);
   const { data: bundle } = useDayBundle(date);
 
   // создание/уничтожение карты (идемпотентно к StrictMode double-mount)
@@ -83,6 +87,34 @@ export function MapView() {
   useEffect(() => {
     controllerRef.current?.applyLayerToggles(layers);
   }, [layers]);
+
+  // «призрак» линии фронта N месяцев назад (режим сравнения дат)
+  useEffect(() => {
+    const controller = controllerRef.current;
+    if (!controller) return;
+    if (ghostMonths === 0) {
+      controller.setGhost(EMPTY_FC);
+      return;
+    }
+    let cancelled = false;
+    const lastDate = useDateStore.getState().lastDate;
+    const ghostDate = clampDate(addMonths(date, -ghostMonths), FIRST_DATE, lastDate);
+    void qc
+      .fetchQuery({
+        queryKey: qk.frontline(ghostDate, 1),
+        queryFn: () => fetchers.frontline(ghostDate, 1),
+        staleTime: Infinity,
+      })
+      .then((fc) => {
+        if (!cancelled) controller.setGhost(fc);
+      })
+      .catch(() => {
+        if (!cancelled) controller.setGhost(EMPTY_FC);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [date, ghostMonths, qc]);
 
   useEffect(() => {
     void controllerRef.current?.setTheme(theme);

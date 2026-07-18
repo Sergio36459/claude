@@ -60,6 +60,7 @@ export class MapController {
   private showSeq = 0;
   private lastGeo: DayGeo | null = null;
   private lastEvents: FeatureCollection = EMPTY;
+  private lastGhost: FeatureCollection = EMPTY;
   private layerToggles: LayerToggles = {
     control: true,
     frontline: true,
@@ -179,6 +180,24 @@ export class MapController {
       before,
     );
 
+    // «призрак» линии фронта прошлой даты — режим сравнения (docs/02 №8)
+    map.addSource("uwt-ghost", { type: "geojson", data: EMPTY });
+    map.addLayer(
+      {
+        id: "uwt-ghost",
+        type: "line",
+        source: "uwt-ghost",
+        paint: {
+          "line-color": cssVar("--text-muted") || "#898781",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.4, 9, 2.6],
+          "line-dasharray": [2, 2.5],
+          "line-opacity": 0.9,
+        },
+        layout: { "line-cap": "round", "line-join": "round" },
+      },
+      before,
+    );
+
     map.addSource("uwt-frontline", { type: "geojson", data: EMPTY });
     map.addLayer(
       {
@@ -228,6 +247,7 @@ export class MapController {
       this.setSourceData("uwt-diff", this.lastGeo.diff);
     }
     this.setSourceData("uwt-events", this.lastEvents);
+    this.setSourceData("uwt-ghost", this.lastGhost);
     this.applyLayerToggles(this.layerToggles);
   }
 
@@ -345,6 +365,11 @@ export class MapController {
   setEvents(fc: FeatureCollection): void {
     this.lastEvents = fc;
     if (this.ready) this.setSourceData("uwt-events", fc);
+  }
+
+  setGhost(fc: FeatureCollection): void {
+    this.lastGhost = fc;
+    if (this.ready) this.setSourceData("uwt-ghost", fc);
   }
 
   applyLayerToggles(t: LayerToggles): void {

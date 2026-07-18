@@ -1,6 +1,7 @@
 "use client";
 
 import type { StyleSpecification } from "maplibre-gl";
+import { BASE_PATH } from "./config";
 
 /**
  * Собственная подложка «мировая карта региона»: страны, границы, области
@@ -36,12 +37,12 @@ export function buildLocalStyle(theme: "light" | "dark"): StyleSpecification {
         };
 
   const src = (file: string) =>
-    ({ type: "geojson", data: `/basemap/${file}` }) as const;
+    ({ type: "geojson", data: `${BASE_PATH}/basemap/${file}` }) as const;
 
   return {
     version: 8,
     name: `uwt-local-${theme}`,
-    glyphs: "/glyphs/{fontstack}/{range}.pbf",
+    glyphs: `${BASE_PATH}/glyphs/{fontstack}/{range}.pbf`,
     sources: {
       countries: src("countries.geojson"),
       "admin1-ua": src("admin1-ua.geojson"),
