@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Пыль и слова</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: #07070c;
+    font-family: "Segoe UI", system-ui, sans-serif;
+  }
+
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  .ui {
+    position: fixed;
+    left: 50%;
+    bottom: 32px;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    z-index: 10;
+  }
+
+  .palette {
+    display: flex;
+    gap: 10px;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    backdrop-filter: blur(10px);
+  }
+
+  .swatch {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+  .swatch:hover { transform: scale(1.15); }
+  .swatch.active {
+    border-color: #fff;
+    transform: scale(1.2);
+    box-shadow: 0 0 12px currentColor;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  #word {
+    width: min(320px, 70vw);
+    padding: 12px 18px;
+    font-size: 17px;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 999px;
+    outline: none;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  #word::placeholder { color: rgba(255, 255, 255, 0.35); }
+  #word:focus {
+    border-color: rgba(255, 255, 255, 0.45);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.08);
+  }
+
+  #scatter {
+    padding: 12px 18px;
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 999px;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  #scatter:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
+
+  .hint {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.35);
+    letter-spacing: 0.03em;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="ui">
+  <div class="palette" id="palette"></div>
+  <div class="input-row">
+    <input id="word" type="text" placeholder="Введите слово и нажмите Enter" autocomplete="off" maxlength="20">
+    <button id="scatter" title="Рассеять пыль">✕</button>
+  </div>
+  <div class="hint">Enter — собрать пыль в слово · ✕ — рассеять</div>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  let W, H, DPR;
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W * DPR;
+    canvas.height = H * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', () => {
+    resize();
+    if (currentWord) formWord(currentWord);
+  });
+
+  // --- Палитра ---
+  const COLORS = [
+    { name: 'золото',    hex: '#f5c84c' },
+    { name: 'бирюза',    hex: '#4ce0d2' },
+    { name: 'роза',      hex: '#f2668b' },
+    { name: 'лаванда',   hex: '#a78bfa' },
+    { name: 'изумруд',   hex: '#4ade80' },
+    { name: 'небо',      hex: '#60a5fa' },
+    { name: 'закат',     hex: '#fb923c' },
+    { name: 'жемчуг',    hex: '#e5e7eb' },
+  ];
+  let currentColor = COLORS[0].hex;
+
+  function hexToRgb(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  }
+
+  const paletteEl = document.getElementById('palette');
+  COLORS.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.className = 'swatch' + (i === 0 ? ' active' : '');
+    b.style.background = c.hex;
+    b.style.color = c.hex;
+    b.title = c.name;
+    b.addEventListener('click', () => {
+      currentColor = c.hex;
+      paletteEl.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+      b.classList.add('active');
+      const rgb = hexToRgb(c.hex);
+      for (const p of particles) p.targetColor = rgb;
+    });
+    paletteEl.appendChild(b);
+  });
+
+  // --- Частицы ---
+  const COUNT = Math.min(2600, Math.floor((W * H) / 550));
+  const particles = [];
+  const startRgb = hexToRgb(currentColor);
+
+  for (let i = 0; i < COUNT; i++) {
+    particles.push({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: (Math.random() - 0.5) * 0.4,
+      size: 0.6 + Math.random() * 1.7,
+      alpha: 0.25 + Math.random() * 0.6,
+      phase: Math.random() * Math.PI * 2,
+      drift: 0.2 + Math.random() * 0.6,
+      tx: null,           // цель (пиксель буквы) или null — свободный полёт
+      ty: null,
+      color: { ...startRgb },
+      targetColor: { ...startRgb },
+    });
+  }
+
+  let currentWord = '';
+
+  // Растеризуем слово в невидимом канвасе и берём координаты пикселей
+  function getTextPoints(word) {
+    const off = document.createElement('canvas');
+    const octx = off.getContext('2d');
+    off.width = W;
+    off.height = H;
+
+    let fontSize = Math.min(H * 0.42, (W * 0.85) / Math.max(word.length * 0.62, 1));
+    fontSize = Math.max(fontSize, 40);
+    octx.font = `900 ${fontSize}px "Segoe UI", Arial, sans-serif`;
+    octx.textAlign = 'center';
+    octx.textBaseline = 'middle';
+    octx.fillStyle = '#fff';
+    octx.fillText(word, W / 2, H / 2 - H * 0.06);
+
+    const data = octx.getImageData(0, 0, W, H).data;
+    const points = [];
+    const gap = 3; // шаг сетки выборки пикселей
+    for (let y = 0; y < H; y += gap) {
+      for (let x = 0; x < W; x += gap) {
+        if (data[(y * W + x) * 4 + 3] > 128) {
+          points.push({ x, y });
+        }
+      }
+    }
+    return points;
+  }
+
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function formWord(word) {
+    currentWord = word;
+    const points = getTextPoints(word);
+    if (!points.length) { scatter(); return; }
+    shuffle(points);
+    shuffle(particles);
+
+    const n = Math.min(points.length, particles.length);
+    // Если точек больше, чем частиц — равномерно прореживаем точки
+    const step = points.length / n;
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      if (i < n) {
+        const pt = points[Math.floor(i * step)];
+        p.tx = pt.x + (Math.random() - 0.5) * 1.5;
+        p.ty = pt.y + (Math.random() - 0.5) * 1.5;
+      } else {
+        p.tx = null;
+        p.ty = null;
+      }
+    }
+  }
+
+  function scatter() {
+    currentWord = '';
+    for (const p of particles) {
+      p.tx = null;
+      p.ty = null;
+      const a = Math.random() * Math.PI * 2;
+      const s = 0.5 + Math.random() * 1.5;
+      p.vx = Math.cos(a) * s;
+      p.vy = Math.sin(a) * s;
+    }
+  }
+
+  // --- Управление ---
+  const input = document.getElementById('word');
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const word = input.value.trim();
+      if (word) formWord(word);
+      else scatter();
+    }
+  });
+  document.getElementById('scatter').addEventListener('click', () => {
+    input.value = '';
+    scatter();
+    input.focus();
+  });
+
+  // --- Анимация ---
+  let t = 0;
+  function frame() {
+    t += 0.016;
+    ctx.clearRect(0, 0, W, H);
+
+    for (const p of particles) {
+      // плавный переход цвета
+      p.color.r += (p.targetColor.r - p.color.r) * 0.04;
+      p.color.g += (p.targetColor.g - p.color.g) * 0.04;
+      p.color.b += (p.targetColor.b - p.color.b) * 0.04;
+
+      if (p.tx !== null) {
+        // тянемся к своей точке в слове
+        const dx = p.tx - p.x;
+        const dy = p.ty - p.y;
+        p.vx = p.vx * 0.82 + dx * 0.045;
+        p.vy = p.vy * 0.82 + dy * 0.045;
+        p.x += p.vx;
+        p.y += p.vy;
+        // лёгкое мерцание на месте
+        p.x += Math.sin(t * 2 + p.phase) * 0.15;
+        p.y += Math.cos(t * 2.3 + p.phase) * 0.15;
+      } else {
+        // свободный дрейф
+        p.vx += (Math.random() - 0.5) * 0.03;
+        p.vy += (Math.random() - 0.5) * 0.03;
+        p.vx *= 0.985;
+        p.vy *= 0.985;
+        p.x += p.vx + Math.sin(t * p.drift + p.phase) * 0.2;
+        p.y += p.vy + Math.cos(t * p.drift * 0.8 + p.phase) * 0.2;
+
+        // мягкий возврат в экран
+        if (p.x < -20) p.x = W + 20;
+        if (p.x > W + 20) p.x = -20;
+        if (p.y < -20) p.y = H + 20;
+        if (p.y > H + 20) p.y = -20;
+      }
+
+      const tw = 0.75 + 0.25 * Math.sin(t * 3 + p.phase);
+      // частицы в слове светятся ярче, чтобы текст читался
+      ctx.globalAlpha = Math.min(1, p.alpha * tw * (p.tx !== null ? 1.8 : 1));
+      ctx.fillStyle = `rgb(${p.color.r | 0}, ${p.color.g | 0}, ${p.color.b | 0})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
+</script>
+</body>
+</html>
